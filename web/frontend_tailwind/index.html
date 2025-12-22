@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Green House Dashboard</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <aside class="w-64 bg-gray-900 text-white flex flex-col shadow-lg transition-all duration-300">
+            <div class="p-6 flex items-center justify-center border-b border-gray-700">
+                <div class="text-center">
+                    <i class="fas fa-leaf text-green-500 text-3xl mb-2"></i>
+                    <h1 class="font-bold text-lg">TECH GREEN HOUSE</h1>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 text-xs text-gray-400 text-center bg-gray-800" id="current-datetime"></div>
+
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="#" onclick="showPage('dashboard')" class="nav-link flex items-center px-4 py-3 rounded-lg bg-green-600 text-white transition hover:bg-green-700">
+                    <i class="fas fa-home w-6"></i> <span>Dashboard</span>
+                </a>
+                <a href="#" onclick="showPage('analytics')" class="nav-link flex items-center px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition">
+                    <i class="fas fa-chart-line w-6"></i> <span>Analytics</span>
+                </a>
+                <a href="#" onclick="showPage('watering')" class="nav-link flex items-center px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition">
+                    <i class="fas fa-faucet w-6"></i> <span>Watering</span>
+                </a>
+                <a href="#" onclick="showPage('harvest')" class="nav-link flex items-center px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition">
+                    <i class="fas fa-box-open w-6"></i> <span>Harvest</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-8 relative">
+            
+            <section id="dashboard" class="page-section block">
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-8 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">Selamat Datang, <span class="text-green-600">Admin</span></h2>
+                    <span class="text-sm text-green-600 bg-green-100 px-3 py-1 rounded-full animate-pulse">● System Connected</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-blue-50 p-6 rounded-xl shadow-sm border border-blue-100">
+                        <h3 class="text-gray-500 text-sm uppercase font-semibold">Suhu</h3>
+                        <div class="flex items-end mt-2">
+                            <span class="text-4xl font-bold text-blue-600" id="val-suhu">--</span>
+                            <span class="text-lg text-gray-600 ml-1">°C</span>
+                        </div>
+                    </div>
+                    <div class="bg-teal-50 p-6 rounded-xl shadow-sm border border-teal-100">
+                        <h3 class="text-gray-500 text-sm uppercase font-semibold">Kelembapan Udara</h3>
+                        <div class="flex items-end mt-2">
+                            <span class="text-4xl font-bold text-teal-600" id="val-hum">--</span>
+                            <span class="text-lg text-gray-600 ml-1">%</span>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 p-6 rounded-xl shadow-sm border border-yellow-100">
+                        <h3 class="text-gray-500 text-sm uppercase font-semibold">Cahaya</h3>
+                        <div class="flex items-end mt-2">
+                            <span class="text-4xl font-bold text-yellow-600" id="val-light">--</span> <span class="text-lg text-gray-600 ml-1">Lux</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 relative overflow-hidden">
+                        <h3 class="font-bold text-lg mb-4 text-center border-b pb-2">KONDISI TANAH</h3>
+                        <div class="flex h-40">
+                            <div class="w-1/2 flex flex-col justify-center items-center border-r border-gray-200">
+                                <span class="text-gray-500 text-sm">PH Level</span>
+                                <span class="text-3xl font-bold text-purple-600 mt-2" id="val-ph">7.0</span> <span class="text-xs text-green-500 mt-1 bg-green-100 px-2 rounded-full">Normal</span>
+                            </div>
+                            <div class="w-1/2 flex flex-col justify-center items-center">
+                                <span class="text-gray-500 text-sm">Kelembapan Tanah</span>
+                                <span class="text-3xl font-bold text-brown-600 mt-2" id="val-soil">--</span>
+                                <span class="text-xs text-gray-500 mt-1">% Moisture</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-center">
+                         <div class="text-center">
+                            <i class="far fa-calendar-alt text-4xl text-gray-300 mb-2"></i>
+                            <h3 class="text-gray-400 font-medium">CALENDAR WIDGET</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-100 rounded-xl p-4 flex items-center justify-between shadow-inner border border-green-200">
+                    <span class="font-bold text-green-800 tracking-wide">STATUS POMPA AIR</span>
+                    <span id="watering-status" class="bg-white px-4 py-1 rounded-full text-green-600 text-sm font-semibold shadow-sm">Loading...</span>
+                </div>
+            </section>
+
+            <section id="analytics" class="page-section hidden">
+                <div class="mb-8">
+                    <span class="bg-gray-200 text-gray-700 px-6 py-3 rounded-full font-bold uppercase tracking-wide text-sm shadow-sm border border-gray-300">
+                        Riwayat Panen Per Tanggal
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-center font-bold text-xl mb-4 text-gray-700 uppercase">Cahaya/Jam</h3>
+                        <div class="h-64 relative w-full"><canvas id="chart-cahaya"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-center font-bold text-xl mb-4 text-gray-700 uppercase">Kelembapan/Jam</h3>
+                        <div class="h-64 relative w-full"><canvas id="chart-kelembapan"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-center font-bold text-xl mb-4 text-gray-700 uppercase">Suhu/Jam</h3>
+                        <div class="h-64 relative w-full"><canvas id="chart-suhu"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-center font-bold text-xl mb-4 text-gray-700 uppercase">PH Tanah/Jam</h3>
+                        <div class="h-64 relative w-full"><canvas id="chart-ph"></canvas></div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="watering" class="page-section hidden">
+                <h2 class="text-2xl font-bold mb-6">Smart Watering Control</h2>
+                 <div class="bg-gray-800 w-full h-96 rounded-xl flex items-center justify-center mb-6 shadow-md relative group">
+                    <div class="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 text-xs rounded animate-pulse">LIVE</div>
+                    <p class="text-gray-400">Tampilan Live Tanaman (CCTV Feed)</p>
+                </div>
+                <button onclick="toggleWatering()" id="btn-manual-water" class="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-bold py-6 rounded-xl shadow-lg transition transform active:scale-95">
+                    <span>MULAI PENYIRAMAN MANUAL</span>
+                </button>
+            </section>
+            
+            <section id="harvest" class="page-section hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Harvest Management</h2>
+                    <p class="text-sm text-gray-500">Monitoring hasil panen dan produktivitas greenhouse</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Bulan Ini</p><h3 class="text-2xl font-bold text-gray-800 mt-1">128 kg</h3></div>
+                            <div class="p-2 bg-green-50 rounded-lg text-green-600"><i class="fas fa-weight-hanging"></i></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Panen Minggu Ini</p><h3 class="text-2xl font-bold text-gray-800 mt-1">42 kg</h3></div>
+                            <div class="p-2 bg-blue-50 rounded-lg text-blue-600"><i class="fas fa-calendar-week"></i></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Rata-rata/Hari</p><h3 class="text-2xl font-bold text-gray-800 mt-1">5.2 kg</h3></div>
+                            <div class="p-2 bg-yellow-50 rounded-lg text-yellow-600"><i class="fas fa-chart-line"></i></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prediksi Panen</p><h3 class="text-xl font-bold text-gray-800 mt-1">High Yield</h3></div>
+                            <div class="p-2 bg-purple-50 rounded-lg text-purple-600"><i class="fas fa-magic"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <h3 class="font-bold text-gray-700">Riwayat Panen Terbaru</h3>
+                        <button class="text-xs text-green-600 hover:underline">Lihat Semua</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                    <th class="px-6 py-4 font-semibold">Tanggal</th>
+                                    <th class="px-6 py-4 font-semibold">Area</th>
+                                    <th class="px-6 py-4 font-semibold">Jenis</th>
+                                    <th class="px-6 py-4 font-semibold">Kuantitas</th>
+                                    <th class="px-6 py-4 font-semibold">Kualitas</th>
+                                    <th class="px-6 py-4 font-semibold">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
+                                <tr class="hover:bg-gray-50 transition"><td class="px-6 py-4">24 Okt 2023</td><td class="px-6 py-4">Blok A (Utara)</td><td class="px-6 py-4">Wortel</td><td class="px-6 py-4 font-medium">45 Kg</td><td class="px-6 py-4 text-green-600">Grade A</td><td class="px-6 py-4"><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">Selesai</span></td></tr>
+                                <tr class="hover:bg-gray-50 transition"><td class="px-6 py-4">22 Okt 2023</td><td class="px-6 py-4">Blok B (Timur)</td><td class="px-6 py-4">Selada</td><td class="px-6 py-4 font-medium">30 Kg</td><td class="px-6 py-4 text-yellow-600">Grade B</td><td class="px-6 py-4"><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">Selesai</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-700 text-lg">Grafik Produktivitas</h3>
+                        <p class="text-xs text-gray-400">Chart: Produktivitas per Minggu</p>
+                    </div>
+                    <div class="relative w-full h-80"> <canvas id="chart-productivity"></canvas> </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

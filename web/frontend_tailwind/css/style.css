@@ -1,0 +1,39 @@
+/* Location: web/frontend_tailwind/css/style.css */
+
+/* --- 1. Custom Scrollbar (Agar terlihat lebih modern) --- */
+/* Lebar scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+/* Warna background track scrollbar */
+::-webkit-scrollbar-track {
+    background: #f1f1f1; 
+}
+
+/* Warna handle (bagian yang digeser) */
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* Warna abu-abu soft */
+    border-radius: 4px;
+}
+
+/* Warna handle saat di-hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* Lebih gelap saat disentuh mouse */
+}
+
+
+/* --- 2. Utility Classes Tambahan --- */
+
+/* Transisi halus untuk link sidebar saat berpindah halaman */
+.nav-link {
+    transition: all 0.2s ease-in-out;
+}
+
+/* --- 3. Chart.js Responsive Fix --- */
+/* Memaksa canvas grafik agar tidak melebar sembarangan di dalam Grid */
+canvas {
+    width: 100% !important;
+    max-height: 250px; /* Membatasi tinggi grafik agar layout tidak pecah */
+}
