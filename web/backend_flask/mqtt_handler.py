@@ -1,66 +1,83 @@
 import paho.mqtt.client as mqtt
 import json
-import os
-from dotenv import load_dotenv
+import uuid
+import time
+import sys
 
-load_dotenv()
+# --- KONFIGURASI BROKER ---
+BROKER = 'broker.emqx.io'
+PORT = 1883
 
-# Variabel Global untuk menyimpan data sensor terakhir (In-Memory)
-latest_sensor_data = {
-    "suhu": 0,
-    "kelembapan_udara": 0,
-    "kelembapan_tanah": 0,
-    "status_pompa": "OFF"
-}
+# Topik
+TOPIC_SENSOR = 'greenhouse/data'
+TOPIC_CONTROL = 'greenhouse/control/pump'
 
-# Konfigurasi MQTT (Default values jika .env kosong)
-BROKER = os.getenv('MQTT_BROKER', 'broker.hivemq.com')
-PORT = int(os.getenv('MQTT_PORT', 1883))
-TOPIC_SENSOR = os.getenv('MQTT_TOPIC_SENSOR', 'project_c2/greenhouse/data')
-TOPIC_CONTROL = os.getenv('MQTT_TOPIC_CONTROL', 'project_c2/greenhouse/control')
+# Generate Client ID Unik
+CLIENT_ID = f"Flask_{uuid.uuid4()}"
 
-client = mqtt.Client()
+# Inisialisasi Client
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=CLIENT_ID)
 
-def on_connect(client, userdata, flags, rc):
-    """Callback ketika berhasil connect ke Broker"""
-    if rc == 0:
-        print(f"[MQTT] Terhubung ke Broker {BROKER}!")
+# Variabel Global untuk Callback
+callback_to_app = None 
+
+def on_connect(client, userdata, flags, reason_code, properties):
+    if reason_code == 0:
+        print(f"\n✅ [MQTT] TERHUBUNG! Broker: {BROKER}")
+        print(f"   [MQTT] Subscribe ke: {TOPIC_SENSOR}")
         client.subscribe(TOPIC_SENSOR)
-        print(f"[MQTT] Subscribe ke topik: {TOPIC_SENSOR}")
     else:
-        print(f"[MQTT] Gagal connect. Kode: {rc}")
+        print(f"\n❌ [MQTT] GAGAL CONNECT. Kode: {reason_code}")
+
+def on_disconnect(client, userdata, disconnect_flags, reason_code, properties):
+    print(f"\n⚠️ [MQTT] TERPUTUS! Kode: {reason_code}")
 
 def on_message(client, userdata, msg):
-    """Callback ketika ada pesan masuk dari ESP32"""
-    global latest_sensor_data
     try:
         payload = msg.payload.decode('utf-8')
-        # print(f"[MQTT] Pesan Masuk: {payload}")
+        # Print data mentah dari MQTT
+        print(f"📩 [MQTT RAW] {payload}")
         
         data = json.loads(payload)
         
-        # Update data global
-        latest_sensor_data.update(data)
-        
-    except json.JSONDecodeError:
-        print("[MQTT] Error: Format data bukan JSON valid")
+        # DEBUG: Cek status callback
+        global callback_to_app
+        if callback_to_app:
+            # Panggil fungsi di app.py
+            print("   [MQTT] Mengirim data ke app.py...")
+            callback_to_app(data)
+        else:
+            print("❌ [MQTT ERROR] Callback ke app.py BELUM TERHUBUNG (None)!")
+            
     except Exception as e:
-        print(f"[MQTT] Error processing message: {e}")
+        print(f"   [MQTT ERROR] {e}")
 
-def start_mqtt():
-    """Fungsi untuk menjalankan MQTT di background"""
+def start_mqtt(on_message_callback):
+    global callback_to_app
+    # Simpan fungsi dari app.py ke variabel global
+    callback_to_app = on_message_callback 
+    
+    print(f"   [MQTT] Callback app.py berhasil didaftarkan: {on_message_callback}")
+    
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.on_message = on_message
     
     try:
+        # Validasi
+        if not BROKER or BROKER == "...":
+            raise ValueError("Nama Broker MQTT belum diisi dengan benar!")
+
+        print(f"\n⏳ [MQTT] Menghubungkan ke {BROKER} (Port {PORT})...")
         client.connect(BROKER, PORT, 60)
-        client.loop_start() # Jalan di background thread
+        client.loop_start()
     except Exception as e:
-        print(f"[MQTT] Koneksi Gagal: {e}")
+        print(f"❌ [MQTT FATAL] Gagal start: {e}")
 
 def publish_control(component, action):
-    """Fungsi untuk mengirim perintah ke ESP32"""
-    # Format JSON: {"target": "pompa", "action": "ON"}
-    payload = json.dumps({"target": component, "action": action})
-    client.publish(TOPIC_CONTROL, payload)
-    print(f"[MQTT] Publish Control: {payload} ke {TOPIC_CONTROL}")
+    try:
+        payload = action
+        client.publish(TOPIC_CONTROL, payload)
+        print(f"📤 [MQTT KELUAR] {TOPIC_CONTROL} -> {payload}")
+    except Exception as e:
+        print(f"❌ [MQTT ERROR] Gagal publish: {e}")
