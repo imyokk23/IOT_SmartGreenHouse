@@ -1,15 +1,14 @@
 // Location: frontend_tailwind/js/script.js
 
 // --- CONFIGURATION ---
-// [PENTING] Cek ipconfig lagi! Jangan sampai salah satu angka pun.
-const BASE_URL = 'http://192.168.98.200:5000'; 
-
-const UI_TEST_MODE = false; 
+const UI_TEST_MODE = false; // Set FALSE agar konek ke Python
+const API_BASE_URL = "http://127.0.0.1:5000"; // Alamat Backend Flask kamu
 
 let currentPumpStatus = "OFF"; 
-let failureCount = 0; 
 
-// 1. Navigation Logic
+// =========================================
+// 1. NAVIGATION & TIME LOGIC
+// =========================================
 function showPage(pageId) {
     document.querySelectorAll('.page-section').forEach(section => section.classList.add('hidden'));
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -23,151 +22,264 @@ function showPage(pageId) {
 function updateTime() {
     const now = new Date();
     const el = document.getElementById('current-datetime');
-    if(el) el.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    if(el) {
+        el.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
 }
 setInterval(updateTime, 1000);
 updateTime();
 
-// 2. DATA FETCHING
-async function fetchSensorData() {
-    if (UI_TEST_MODE) return;
 
-    const targetUrl = `${BASE_URL}/api/sensors`;
+// =========================================
+// 2. DATA FETCHING (Koneksi ke Flask)
+// =========================================
+async function fetchSensorData() {
+    if (UI_TEST_MODE) {
+        updateUI({
+            suhu: (25 + Math.random()).toFixed(1),
+            kelembapan_udara: 60,
+            kelembapan_tanah: 70,
+            cahaya: 500,
+            status_pompa: "OFF"
+        });
+        return;
+    }
 
     try {
-        // Timeout diperpanjang jadi 15 detik untuk diagnosa
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-        // console.log(`[DEBUG] Mencoba connect ke: ${targetUrl}`); // Uncomment kalau mau liat spam log
-
-        const response = await fetch(targetUrl, {
-            signal: controller.signal,
-            mode: 'cors',
-            method: 'GET'
-        });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-        }
-
+        // [UPDATE] Menggunakan Full URL karena Frontend & Backend beda port
+        const response = await fetch(`${API_BASE_URL}/api/sensors`);
         const result = await response.json();
 
         if (result.status === "success") {
-            failureCount = 0; 
             updateUI(result.data);
-            setSystemStatus(true, "System Connected");
-        } else {
-            console.warn("Format data salah:", result);
         }
-
     } catch (error) {
-        failureCount++;
-        let errorMsg = "Disconnected";
-
-        if (error.name === 'AbortError') {
-            console.error(`[TIMEOUT] Gagal menghubungi ${targetUrl} dalam 15 detik.`);
-            errorMsg = "Koneksi Timeout (Cek Firewall/IP)";
-        } else if (error.message.includes("Failed to fetch")) {
-            console.error(`[NETWORK ERROR] Gagal menghubungi ${targetUrl}. Server mati atau IP salah.`);
-            errorMsg = "Server Tidak Ditemukan";
-        } else {
-            console.error("[ERROR LAIN]", error);
-        }
-
-        if (failureCount >= 3) {
-            setSystemStatus(false, errorMsg);
-        }
-    }
-}
-
-// Fungsi Status Visual
-function setSystemStatus(isOnline, message) {
-    const statusBadge = document.getElementById('server-status');
-    // Fallback cari elemen badge manual jika ID tidak ketemu
-    const backupBadge = document.querySelector('.text-green-600.bg-green-100') || document.querySelector('.text-red-600.bg-red-100');
-    
-    const target = statusBadge || backupBadge;
-
-    if (!target) return;
-
-    if (isOnline) {
-        target.innerText = `● ${message}`;
-        target.className = "text-sm text-green-600 bg-green-100 px-3 py-1 rounded-full animate-pulse shadow-sm font-bold";
-    } else {
-        target.innerText = `● ${message}`;
-        target.className = "text-sm text-red-600 bg-red-100 px-3 py-1 rounded-full animate-pulse shadow-sm font-bold";
+        console.error("Gagal connect ke backend:", error);
     }
 }
 
 function updateUI(data) {
-    const setText = (id, val) => {
-        const el = document.getElementById(id);
-        if(el) el.innerText = (val !== null && val !== undefined) ? val : "--";
-    };
+    // Mapping data dari Python JSON ke HTML ID
+    
+    // 1. Suhu
+    document.getElementById('val-suhu').innerText = data.suhu || "--";
+    
+    // 2. Kelembapan Udara
+    document.getElementById('val-hum').innerText = data.kelembapan_udara || "--";
+    
+    // 3. Kelembapan Tanah
+    document.getElementById('val-soil').innerText = data.kelembapan_tanah || "--";
+    
+    // 4. Cahaya (SUDAH REAL-TIME DARI DB/MQTT)
+    document.getElementById('val-light').innerText = data.cahaya || "0"; 
 
-    setText('val-suhu', data.suhu);
-    setText('val-hum', data.kelembapan_udara);
-    setText('val-soil', data.kelembapan_tanah);
-    setText('val-light', data.cahaya);
-    setText('val-ph', "7.0");
+    // 5. PH (Masih Dummy karena belum ada di hardware)
+    document.getElementById('val-ph').innerText = "7.0";    
 
+    // 6. Update Status Pompa
     updatePumpUI(data.status_pompa);
 }
 
+// Update UI Pompa (Visualisasi 2 Tombol & Ikon)
 function updatePumpUI(status) {
-    const statusEl = document.getElementById('watering-status');
-    const btn = document.getElementById('btn-manual-water');
-    if (!statusEl || !btn) return;
-
     currentPumpStatus = status; 
-    const btnText = btn.querySelector('span');
 
-    if(status === "ON") {
-        statusEl.innerText = "SEDANG MENYIRAM...";
-        statusEl.className = "bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-bold animate-pulse shadow-md";
-        if(btnText) btnText.innerText = "MATIKAN PENYIRAMAN (STOP)";
-        btn.className = "w-full bg-gradient-to-r from-red-400 to-red-600 text-white font-bold py-6 rounded-xl shadow-lg transition transform active:scale-95";
+    const statusText = document.getElementById('pump-status-text');
+    const iconContainer = document.getElementById('pump-icon-container');
+    const btnOn = document.getElementById('btn-pump-on');
+    const btnOff = document.getElementById('btn-pump-off');
+    const statusLabelDashboard = document.getElementById('watering-status'); 
+
+    if (status === "ON") {
+        // --- KONDISI MENYALA ---
+        if(iconContainer) iconContainer.className = "w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-3xl transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] animate-pulse";
+        
+        if(statusText) {
+            statusText.innerText = "MENYIRAM (ON)";
+            statusText.className = "px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 uppercase tracking-wide transition-all";
+        }
+
+        if(btnOn) {
+            btnOn.className = "flex-1 md:flex-none min-w-[120px] py-4 rounded-xl font-bold text-white bg-green-500 shadow-md transform scale-105 border border-green-600 cursor-default";
+            btnOn.disabled = true; 
+        }
+        if(btnOff) {
+            btnOff.className = "flex-1 md:flex-none min-w-[120px] py-4 rounded-xl font-bold text-gray-500 bg-white hover:bg-red-50 hover:text-red-500 hover:border-red-200 border border-gray-200 transition-all cursor-pointer";
+            btnOff.disabled = false;
+        }
+
+        if(statusLabelDashboard) {
+            statusLabelDashboard.innerText = "AKTIF";
+            statusLabelDashboard.className = "bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-bold animate-pulse";
+        }
+
     } else {
-        statusEl.innerText = "Standby";
-        statusEl.className = "bg-white px-4 py-1 rounded-full text-green-600 text-sm font-semibold shadow-sm border border-green-200";
-        if(btnText) btnText.innerText = "MULAI PENYIRAMAN MANUAL";
-        btn.className = "w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-bold py-6 rounded-xl shadow-lg transition transform active:scale-95";
+        // --- KONDISI MATI (OFF) ---
+        if(iconContainer) iconContainer.className = "w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-3xl transition-all duration-300 shadow-inner";
+
+        if(statusText) {
+            statusText.innerText = "STANDBY (OFF)";
+            statusText.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-500 uppercase tracking-wide transition-all";
+        }
+
+        if(btnOff) {
+            btnOff.className = "flex-1 md:flex-none min-w-[120px] py-4 rounded-xl font-bold text-white bg-gray-600 shadow-md border border-gray-700 cursor-default";
+            btnOff.disabled = true; 
+        }
+        if(btnOn) {
+            btnOn.className = "flex-1 md:flex-none min-w-[120px] py-4 rounded-xl font-bold text-gray-500 bg-white hover:bg-green-50 hover:text-green-500 hover:border-green-200 border border-gray-200 transition-all cursor-pointer";
+            btnOn.disabled = false;
+        }
+
+        if(statusLabelDashboard) {
+            statusLabelDashboard.innerText = "Standby";
+            statusLabelDashboard.className = "bg-white px-4 py-1 rounded-full text-green-600 text-sm font-semibold shadow-sm border border-green-200";
+        }
     }
 }
 
-async function toggleWatering() {
-    const btn = document.getElementById('btn-manual-water');
-    const actionToSend = (currentPumpStatus === "ON") ? "OFF" : "ON";
+// Polling Data (Setiap 2 detik)
+setInterval(fetchSensorData, 2000);
+fetchSensorData(); 
+
+
+// =========================================
+// 3. CONTROLLING (Kirim Perintah ke Flask)
+// =========================================
+async function sendPumpCommand(action) {
+    const btnClicked = action === 'ON' ? document.getElementById('btn-pump-on') : document.getElementById('btn-pump-off');
+    const originalText = btnClicked.innerHTML;
+    
+    // Visual Feedback Loading
+    btnClicked.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        const response = await fetch(`${BASE_URL}/api/control`, {
+        // [UPDATE] Menggunakan Full URL ke Backend
+        const response = await fetch(`${API_BASE_URL}/api/control`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ component: 'pompa', action: actionToSend })
+            body: JSON.stringify({
+                component: 'pompa',
+                action: action
+            })
         });
+
         const result = await response.json();
+        
         if(result.status === "success") {
-            updatePumpUI(actionToSend);
+            console.log("Sukses:", result.message);
         } else {
             alert("Gagal: " + result.message);
         }
+
     } catch (error) {
-        alert("Gagal menghubungi server: " + error.message);
+        console.error("Error:", error);
+        alert("Gagal terhubung ke server. Pastikan app.py berjalan.");
     } finally {
-        setTimeout(() => btn.classList.remove('opacity-50', 'cursor-not-allowed'), 500);
+        setTimeout(() => {
+             btnClicked.innerHTML = originalText;
+        }, 500);
     }
 }
 
-setInterval(fetchSensorData, 3000);
-fetchSensorData(); 
 
-document.addEventListener('DOMContentLoaded', function() { 
-    // Chart initialization
-    const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: true } } };
+// =========================================
+// 4. FEATURE: REAL-TIME CALENDAR
+// =========================================
+function renderCalendar() {
+    const monthYearEl = document.getElementById('cal-month-year');
+    const daysEl = document.getElementById('cal-days');
+    
+    if (!monthYearEl || !daysEl) return;
+
+    const date = new Date();
+    const currYear = date.getFullYear();
+    const currMonth = date.getMonth(); 
+    
+    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    
+    monthYearEl.innerText = `${months[currMonth]} ${currYear}`;
+    
+    const firstDay = new Date(currYear, currMonth, 1).getDay(); 
+    const lastDate = new Date(currYear, currMonth + 1, 0).getDate();
+    const lastDateofLastMonth = new Date(currYear, currMonth, 0).getDate();
+    
+    let liTag = "";
+
+    for (let i = firstDay; i > 0; i--) {
+        liTag += `<div class="py-2 text-gray-300 bg-gray-50 rounded-lg cursor-default">${lastDateofLastMonth - i + 1}</div>`;
+    }
+
+    for (let i = 1; i <= lastDate; i++) {
+        let isToday = i === date.getDate() ? "bg-green-500 text-white shadow-md transform scale-105 font-bold" : "hover:bg-green-50 text-gray-700 cursor-pointer transition";
+        liTag += `<div class="py-2 rounded-lg ${isToday}">${i}</div>`;
+    }
+
+    daysEl.innerHTML = liTag;
+}
+
+
+// =========================================
+// 5. FEATURE: ANALYTICS DATE FILTER
+// =========================================
+function filterAnalytics() {
+    const dateInput = document.getElementById('analytics-date').value;
+    if(!dateInput) return;
+
+    // Simulasi ganti data (Acak)
+    updateChartWithRandomData('chart-cahaya');
+    updateChartWithRandomData('chart-kelembapan');
+    updateChartWithRandomData('chart-suhu');
+    updateChartWithRandomData('chart-ph');
+}
+
+function updateChartWithRandomData(chartId) {
+    const chartInstance = Chart.getChart(chartId);
+    if (chartInstance) {
+        const newData = Array.from({length: 6}, () => Math.floor(Math.random() * 50) + 20);
+        chartInstance.data.datasets[0].data = newData;
+        chartInstance.update();
+    }
+}
+
+
+// =========================================
+// 6. INITIALIZATION (On Load)
+// =========================================
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // A. Init Calendar
+    renderCalendar();
+
+    // B. Init Charts
+    const commonOptions = { 
+        responsive: true, maintainAspectRatio: false, 
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { display: true } }
+    };
+
+    // Chart Initialization
+    const ctxCahaya = document.getElementById('chart-cahaya');
+    if(ctxCahaya) new Chart(ctxCahaya, { type: 'line', data: { labels: [1,2,3,4,5,6], datasets: [{ data: [300, 450, 600, 800, 500, 400], borderColor: '#fbbf24', fill: true, backgroundColor: 'rgba(251, 191, 36, 0.1)' }] }, options: commonOptions });
+
+    const ctxHum = document.getElementById('chart-kelembapan');
+    if(ctxHum) new Chart(ctxHum, { type: 'line', data: { labels: [1,2,3,4,5,6], datasets: [{ data: [60, 58, 55, 50, 52, 55], borderColor: '#2dd4bf', fill: true, backgroundColor: 'rgba(45, 212, 191, 0.1)' }] }, options: commonOptions });
+
     const ctxSuhu = document.getElementById('chart-suhu');
-    if(ctxSuhu) new Chart(ctxSuhu, { type: 'line', data: { labels: [1,2,3,4,5], datasets: [{ data: [24, 25, 27, 29, 28], borderColor: '#ef4444', fill: true, backgroundColor: 'rgba(239, 68, 68, 0.1)' }] }, options: commonOptions });
-    // ... sisa chart biarkan saja ...
+    if(ctxSuhu) new Chart(ctxSuhu, { type: 'line', data: { labels: [1,2,3,4,5,6], datasets: [{ data: [24, 25, 27, 29, 28, 26], borderColor: '#ef4444', fill: true, backgroundColor: 'rgba(239, 68, 68, 0.1)' }] }, options: commonOptions });
+
+    const ctxPh = document.getElementById('chart-ph');
+    if(ctxPh) new Chart(ctxPh, { type: 'line', data: { labels: [1,2,3,4,5,6], datasets: [{ data: [6.8, 6.7, 6.8, 6.9, 6.7, 6.8], borderColor: '#a855f7', fill: true, backgroundColor: 'rgba(168, 85, 247, 0.1)' }] }, options: commonOptions });
+
+    const ctxProd = document.getElementById('chart-productivity');
+    if(ctxProd) {
+        new Chart(ctxProd, {
+            type: 'bar',
+            data: {
+                labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+                datasets: [{ label: 'Total Panen (Kg)', data: [120, 150, 180, 128], backgroundColor: ['rgba(16, 185, 129, 0.5)', 'rgba(16, 185, 129, 0.5)', 'rgba(16, 185, 129, 0.5)', '#10b981'], borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
 });
