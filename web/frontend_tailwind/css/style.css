@@ -1,39 +1,94 @@
-/* Location: web/frontend_tailwind/css/style.css */
+/* =========================================================
+   TECH GREEN HOUSE - CUSTOM STYLESHEET
+   Location: web/frontend_tailwind/css/style.css
+   ========================================================= */
 
-/* --- 1. Custom Scrollbar (Agar terlihat lebih modern) --- */
+
+/* =========================================================
+   1. CUSTOM SCROLLBAR (Chrome / Safari / Edge Webkit)
+   ========================================================= */
+
 /* Lebar scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-/* Warna background track scrollbar */
+/* Background track scrollbar */
 ::-webkit-scrollbar-track {
-    background: #f1f1f1; 
+    background: #f1f1f1;
 }
 
-/* Warna handle (bagian yang digeser) */
+/* Handle scrollbar */
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1; /* Warna abu-abu soft */
+    background: #cbd5e1; /* abu-abu soft */
     border-radius: 4px;
 }
 
-/* Warna handle saat di-hover */
+/* Handle saat hover */
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8; /* Lebih gelap saat disentuh mouse */
+    background: #94a3b8; /* abu-abu lebih gelap */
 }
 
 
-/* --- 2. Utility Classes Tambahan --- */
+/* =========================================================
+   2. SIDEBAR & NAVIGATION
+   ========================================================= */
 
-/* Transisi halus untuk link sidebar saat berpindah halaman */
+/* Transisi halus untuk link sidebar */
 .nav-link {
     transition: all 0.2s ease-in-out;
 }
 
-/* --- 3. Chart.js Responsive Fix --- */
-/* Memaksa canvas grafik agar tidak melebar sembarangan di dalam Grid */
+/* Active state nav (backup jika JS gagal) */
+.nav-link.active {
+    background-color: #16a34a; /* Tailwind green-600 */
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   3. PAGE TRANSITION
+   ========================================================= */
+
+/* Efek fade-in saat ganti halaman */
+.fade-in {
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+/* Keyframes fade-in */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =========================================================
+   4. CHART.JS RESPONSIVE FIX
+   ========================================================= */
+
+/* Mencegah canvas overflow & layout pecah */
 canvas {
     width: 100% !important;
-    max-height: 250px; /* Membatasi tinggi grafik agar layout tidak pecah */
+    max-height: 250px;
 }
+
+
+/* =========================================================
+   5. OPTIONAL FUTURE EXTENSION (READY)
+   ========================================================= */
+/*
+.status-online {
+    color: #16a34a;
+}
+
+.status-offline {
+    color: #dc2626;
+}
+*/

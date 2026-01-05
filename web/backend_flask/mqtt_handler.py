@@ -8,9 +8,12 @@ import sys
 BROKER = 'broker.emqx.io'
 PORT = 1883
 
-# Topik
+# ---TOPIK ---
 TOPIC_SENSOR = 'greenhouse/data'
-TOPIC_CONTROL = 'greenhouse/control/pump'
+
+# ---TOPIC CONTROL---
+TOPIC_CONTROL_PUMP = 'greenhouse/control/pump'
+TOPIC_CONTROL_CAMERA = 'greenhouse/control/camera' # camera control topic
 
 # Generate Client ID Unik
 CLIENT_ID = f"Flask_{uuid.uuid4()}"
@@ -44,7 +47,7 @@ def on_message(client, userdata, msg):
         global callback_to_app
         if callback_to_app:
             # Panggil fungsi di app.py
-            print("   [MQTT] Mengirim data ke app.py...")
+            # print("   [MQTT] Mengirim data ke app.py...") # Uncomment kalau mau debug
             callback_to_app(data)
         else:
             print("❌ [MQTT ERROR] Callback ke app.py BELUM TERHUBUNG (None)!")
@@ -57,7 +60,7 @@ def start_mqtt(on_message_callback):
     # Simpan fungsi dari app.py ke variabel global
     callback_to_app = on_message_callback 
     
-    print(f"   [MQTT] Callback app.py berhasil didaftarkan: {on_message_callback}")
+    print(f"   [MQTT] Callback app.py berhasil didaftarkan")
     
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
@@ -74,10 +77,24 @@ def start_mqtt(on_message_callback):
     except Exception as e:
         print(f"❌ [MQTT FATAL] Gagal start: {e}")
 
+# [UPDATE] Fungsi ini sekarang bisa milih topik
 def publish_control(component, action):
     try:
+        topic_target = ""
+        
+        # Cek komponen apa yang mau dikontrol
+        if component == 'pompa':
+            topic_target = TOPIC_CONTROL_PUMP
+        elif component == 'camera': # [BARU] Logika kamera
+            topic_target = TOPIC_CONTROL_CAMERA
+        else:
+            print(f"⚠️ [MQTT WARN] Komponen tidak dikenal: {component}")
+            return
+
+        # Kirim perintah
         payload = action
-        client.publish(TOPIC_CONTROL, payload)
-        print(f"📤 [MQTT KELUAR] {TOPIC_CONTROL} -> {payload}")
+        client.publish(topic_target, payload)
+        print(f"📤 [MQTT KELUAR] {topic_target} -> {payload}")
+        
     except Exception as e:
         print(f"❌ [MQTT ERROR] Gagal publish: {e}")
